@@ -163,17 +163,20 @@ export class Game extends Elem {
             assign(wrapEl.style, { position: "relative" })
             const can = this._canvas = document.createElement("canvas")
             assign(can, { width: this.width, height: this.height })
-            this.fitCanvasTo(this.fitTo || this.parentEl)
+            if(this.autoFit !== false) {
+                this.fitCanvas()
+                window.addEventListener('resize', () => this.fitCanvas())
+            }
             wrapEl.appendChild(can)
             this.parentEl.appendChild(wrapEl)
         }
         return this._canvas
     }
 
-    fitCanvasTo(el) {
+    fitCanvas() {
         const WoH = this.width / this.height
-        const elW = el.offsetWidth || el.innerWidth
-        const elH = el.offsetHeight || el.innerHeight
+        const elW = this.parentEl.offsetWidth || this.parentEl.innerWidth
+        const elH = this.parentEl.offsetHeight || this.parentEl.innerHeight
         const elWoH = elW / elH
         this.canvas.style.width = floor((WoH > elWoH) ? elW : (elH * WoH)) + "px"
         this.canvas.style.height = floor((WoH > elWoH) ? (elW / WoH) : elH) + "px"
