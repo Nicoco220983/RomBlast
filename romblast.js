@@ -1,5 +1,5 @@
 const { assign } = Object
-const { abs, floor, min, max, pow, random: rand, cos, sin, PI } = Math
+const { abs, floor, min, max, pow, random: rand, cos, sin, tan, PI } = Math
 const { log } = console
 
 import * as MSG from './msgame.js'
@@ -12,29 +12,49 @@ const WIDTH = 600, HEIGHT = 400
 const RUN_SPD = 400
 const ANCHOR_X = .5
 const ANCHOR_Y = 1
-const DURATION = 60
 
 const VOLUME_LEVEL = 0.3
 
+let it = 0
+const SKY_Z = it++
+const VOLCANO_FLAME_Z = it++
+const VOLCANO_FIREBALL_Z = it++
+const FIREBAND_Z = it++
+const GROUND_Z = it++
+const BUSH_Z = it++
+const SHADOW_Z = it++
+const WALKING_Z = it++
+const EXPLOSION_Z = it++
+const FLYING_Z = it++
+const NOTIF_Z = it++
+
+
 export class ExampleGame extends Game {
 
+    width = WIDTH
+    height = HEIGHT
     paused = false
 
-    constructor(...args) {
-        super(...args)
+    start() {
+        super.start()
         document.addEventListener("focus", () => this.pause(false))
         document.addEventListener("blur", () => this.pause(true))
-        this.addPointerDownListener(pos => {
+        this.on("click", (...args) => {
+            this.scene.trigger("click", ...args)
             this.addVolumeBut()
-            this.scene.trigger("click", pos)
-            if (MSG.collide(this.volumeBut, pos))
+            if (MSG.collide(this.volumeBut, this.pointer))
                 this.volumeBut.trigger("click")
         })
+        this.on("dblclick", (...args) => {
+            this.scene.trigger("dblclick", ...args)
+        })
+        this.restart()
     }
-    start() {
+    restart() {
         this.scene = new ExampleScene(this)
     }
     update(dt) {
+        super.update(dt)
         if(this.paused) {
             if(!this.pauseScene) this.pauseScene = new PauseScene(this)
             this.pauseScene.update(dt)
@@ -59,20 +79,22 @@ export class ExampleGame extends Game {
         MSG.pauseAudios(val)
     }
 }
-ExampleGame.prototype.width = WIDTH
-ExampleGame.prototype.height = HEIGHT
 
 // scene
 
 class ExampleScene extends Scene {
 
-    viewX = 0
-    viewY = 0
-    step = "START"
+    step = null
+    score = 0
 
-    constructor(...args) {
-        super(...args)
-        this.start()
+    start() {
+        super.start()
+        this.step = "START"
+        //this.addIntroSprites()
+        //this.on("click", () => this.ongoing())
+        this.initHero()
+        ExampleScene.starters.forEach(fn => fn(this))
+        this.ongoing()
     }
     initHero(){
         this.hero = this.addSprite(Hero, {
@@ -80,19 +102,21 @@ class ExampleScene extends Scene {
             x: 200,
             y: HEIGHT/2,
         })
+        this.on("dblclick", () => {
+            if(this.step !== "ONGOING") return
+            this.hero.shoot()
+        })
     }
     update(dt) {
         super.update(dt)
         if (this.step == "ONGOING") {
             this.viewX += RUN_SPD * dt
             ExampleScene.updaters.forEach(fn => fn(this))
-            if (this.time > DURATION + 3) this.finish()
+            if (this.hero.life == 0) this.finish()
         }
     }
     draw(dt) {
         const viewX = this.viewX, viewY = this.viewY, ctx = this.canvas.getContext("2d")
-        ctx.fillStyle = "white"
-        ctx.fillRect(0, 0, WIDTH, HEIGHT)
         this.sprites.sort((a, b) => {
             const dz = (a.z - b.z)
             if(dz !== 0) return dz > 0
@@ -103,14 +127,6 @@ class ExampleScene extends Scene {
             const viewF = sprite.viewF === undefined ? 1 : sprite.viewF
             sprite.drawTo(ctx, dt, viewX * viewF, viewY * viewF)
         })
-    }
-    start() {
-        this.step = "START"
-        //this.addIntroSprites()
-        //this.on("click", () => this.ongoing())
-        this.initHero()
-        ExampleScene.starters.forEach(fn => fn(this))
-        this.ongoing()
     }
     // addIntroSprites() {
     //     this.introSprites = []
@@ -150,15 +166,20 @@ class ExampleScene extends Scene {
     finish() {
         this.step = "END"
         // this.hero.anim = HeroAnims.happy
-        // let x = WIDTH / 2
-        // let font = "30px Arial"
-        // const anchorX = .5, anchorY = 0
-        // this.addSprite(Text, {
-        //     x, y: 200,
-        //     font, anchorX, anchorY,
-        //     value: `SCORE: ${this.score}`,
-        //     fixed: true
-        // })
+        const args = {
+            x: WIDTH / 2,
+            font: "30px Arial",
+            color: "red",
+            anchorX: .5,
+            anchorY: 0,
+            viewF: 0
+        }
+        this.addSprite(Text, {
+            ...args,
+            y: 200,
+            value: `FINITO`,
+            z: NOTIF_Z,
+        })
         // font = "20px Arial"
         // let text = "J'espere que ce jeu vous a plu ;)"
         // this.addSprite(Text, {
@@ -176,20 +197,13 @@ class ExampleScene extends Scene {
         // })
         this.once("click", () => {
             this.remove()
-            this.game.start()
+            this.game.restart()
         })
     }
 }
 ExampleScene.starters = []
 ExampleScene.ongoers = []
 ExampleScene.updaters = []
-
-// function removeIfOut(sprite) {
-//     const scn = sprite.scene
-//     if((sprite.y - sprite.height) > ( scn.viewX + scn.height)) {
-//         sprite.remove()
-//     }
-// }
 
 // pause
 
@@ -267,7 +281,7 @@ class _Sprite extends Sprite {
 class Notif extends Text {
 
     viewF = 0
-    z = 10
+    z = NOTIF_Z
     anchorX = .5
     anchorY = 1
 
@@ -278,17 +292,16 @@ class Notif extends Text {
     }
 }
 
-// time
+// Life
 
 ExampleScene.ongoers.push(scn => {
-    scn.time = 0
     scn.addSprite(Text, {
         x: 450,
         y: 40,
-        value: () => `Time: ${max(0, floor(DURATION - scn.time))}`,
+        value: () => `Life: ${scn.hero.life}`,
         color: "red",
         viewF: 0,
-        z: 10
+        z: NOTIF_Z,
     })
 })
 
@@ -314,7 +327,7 @@ ExampleScene.starters.push(scn => {
         height: GROUND_Y,
         anim: VolcanoAnim,
         viewF: 0,
-        z: -1
+        z: SKY_Z,
     })
     scn.addSprite(Sprite, {
         x: 43,
@@ -323,48 +336,40 @@ ExampleScene.starters.push(scn => {
         height: 50,
         anim: VolcanoFlameAnim,
         viewF: 0,
-        z: -.9
+        z: VOLCANO_FLAME_Z,
     })
-    createNewTiles(scn)
-    createNewBushes(scn)
-    createNewFires(scn)
+    scn.groundTiler = new GroundTiler(scn)
+    scn.groundTiler.addNewTiles()
+    scn.bushTiler = new  BushTiler(scn)
+    scn.bushTiler.addNewTiles()
+    scn.fireBandTiler = new  FireBandTiler(scn)
+    scn.fireBandTiler.addNewTiles()
 })
 
 ExampleScene.updaters.push(scn => {
-    createNewTiles(scn)
-    createNewBushes(scn)
-    createNewFires(scn)
+    scn.groundTiler.addNewTiles()
+    scn.bushTiler.addNewTiles()
+    scn.fireBandTiler.addNewTiles()
 })
 
-let TilesMinNx = 1, TilesMaxNx = 0, TilesMinNy = 1, TilesMaxNy = 0
-
-function createNewTiles(scn) {
-    let _tilesMinNx = TilesMinNx, _tilesMaxNx = TilesMaxNx, _tilesMinNy = TilesMinNy, _tilesMaxNy = TilesMaxNy
-    for(let nx = floor(scn.viewX/TILE_WIDTH); nx < (scn.viewX + WIDTH)/TILE_WIDTH; ++nx) {
-        for(let ny = floor(scn.viewY/TILE_HEIGHT); ny < (scn.viewY + HEIGHT - GROUND_Y)/TILE_HEIGHT; ++ny) {
-            if(nx >= TilesMinNx && nx <= TilesMaxNx && ny >= TilesMinNy && ny <= TilesMaxNy) continue
-            scn.addSprite(Tile, {
-                x: nx * TILE_WIDTH,
-                y: ny * TILE_HEIGHT + GROUND_Y,
-            })
-            _tilesMinNx = min(_tilesMinNx, nx)
-            _tilesMaxNx = max(_tilesMaxNx, nx)
-            _tilesMinNy = min(_tilesMinNy, ny)
-            _tilesMaxNy = max(_tilesMaxNy, ny)
-        }
-    }
-    TilesMinNx = _tilesMinNx
-    TilesMaxNx = _tilesMaxNx
-    TilesMinNy = _tilesMinNy
-    TilesMaxNy = _tilesMaxNy
-}
-
-class Tile extends _Sprite {
+class Ground extends _Sprite {
     width = TILE_WIDTH
     height = TILE_HEIGHT
-    z = -1
-    autoTransformImg = false
+    z = GROUND_Z
     anim = GroundAnim
+}
+
+class GroundTiler extends MSG.Tiler {
+
+    tileWidth = TILE_WIDTH
+    tileHeight = TILE_HEIGHT
+
+    addTile(nx, ny) {
+        this.scene.addSprite(Ground, {
+            x: nx * TILE_WIDTH,
+            y: ny * TILE_HEIGHT + GROUND_Y,
+        })
+    }
 }
 
 
@@ -380,29 +385,11 @@ const BUSH_WIDTH = 75
 const BUSH_HEIGHT = 50
 const BUSH_MULTIPLICATOR = 3
 
-let BushesMinNx = 1, BushesMaxNx = 0
-
-function createNewBushes(scn) {
-    let _bushesMinNx = BushesMinNx, _bushesMaxNx = BushesMaxNx
-    for(let nx = 0; nx < (scn.viewX + WIDTH)/BUSH_WIDTH*BUSH_MULTIPLICATOR; ++nx) {
-        if(nx >= BushesMinNx && nx <= BushesMaxNx) continue
-        scn.addSprite(Bush, {
-            x: nx * BUSH_WIDTH / BUSH_MULTIPLICATOR,
-            y: GROUND_Y - (.25 + .3 * rand()) * BUSH_HEIGHT,
-        })
-        _bushesMinNx = min(_bushesMinNx, nx)
-        _bushesMaxNx = max(_bushesMaxNx, nx)
-    }
-    BushesMinNx = _bushesMinNx
-    BushesMaxNx = _bushesMaxNx
-}
-
 class Bush extends _Sprite {
 
     width = BUSH_WIDTH
     height = BUSH_HEIGHT
-    z = -.8
-    autoTransformImg = false
+    z = BUSH_Z
 
     constructor(...args){
         super(...args)
@@ -410,47 +397,66 @@ class Bush extends _Sprite {
     }
 }
 
-// fire
+class BushTiler extends MSG.Tiler {
 
-const FireSS = new SpriteSheet(absPath('assets/sprites_fire.png'), {
+    tileWidth = BUSH_WIDTH / BUSH_MULTIPLICATOR
+    tileHeight = BUSH_HEIGHT / BUSH_MULTIPLICATOR
+
+    getNyRange() {
+        return [0, 0]
+    }
+
+    addTile(nx, ny) {
+        this.scene.addSprite(Bush, {
+            x: nx / BUSH_MULTIPLICATOR * BUSH_WIDTH,
+            y: GROUND_Y - (.25 + .3 * rand()) * BUSH_HEIGHT,
+        })
+    }
+}
+
+// fire band
+
+const FireBandSS = new SpriteSheet(absPath('assets/sprite_fire_band.png'), {
     frameWidth: 6000/25,
     frameHeight: 180
 })
-const FireAnim = new Anim(range(25).map(i => FireSS.getFrame(i)), { fps: 15 })
+const FireBandAnim = new Anim(range(25).map(i => FireBandSS.getFrame(i)), { fps: 15 })
 
-const FIRE_WIDTH = 60
-const FIRE_HEIGHT = 50
-const FIRE_VIEWF = .3
+const FIREBAND_WIDTH = 60
+const FIREBAND_HEIGHT = 50
+const FIREBAND_VIEWF = .3
 
-class Fire extends _Sprite {
-    width = FIRE_WIDTH
-    height = FIRE_HEIGHT
-    z = -.9
-    autoTransformImg = false
-    anim = FireAnim
-    viewF = FIRE_VIEWF
+class FireBand extends _Sprite {
+    width = FIREBAND_WIDTH
+    height = FIREBAND_HEIGHT
+    z = FIREBAND_Z
+    anim = FireBandAnim
+    viewF = FIREBAND_VIEWF
 }
 
-let FiresMinNx = 1, FiresMaxNx = 0
+class FireBandTiler extends MSG.Tiler {
 
-function createNewFires(scn) {
-    let minNx = FiresMinNx, maxNx = FiresMaxNx
-    for(let nx = 0; nx < (scn.viewX*FIRE_VIEWF + WIDTH)/FIRE_WIDTH; ++nx) {
-        if(nx >= FiresMinNx && nx <= FiresMaxNx) continue
-        scn.addSprite(Fire, {
-            x: nx * FIRE_WIDTH,
+    tileWidth = FIREBAND_WIDTH
+    tileHeight = FIREBAND_HEIGHT
+
+    getNyRange() {
+        return [0, 0]
+    }
+
+    addTile(nx, ny) {
+        this.scene.addSprite(FireBand, {
+            x: nx * FIREBAND_WIDTH,
             y: 50,
         })
-        minNx = min(minNx, nx)
-        maxNx = max(maxNx, nx)
     }
-    FiresMinNx = minNx
-    FiresMaxNx = maxNx
 }
+
+
 
 // hero
 
 const SPDMAX = 2000, ACC = 2000, DEC = 2000
+const DAMAGE_GRACE_TIME = 1
 
 const heroSS = new SpriteSheet(absPath('assets/loup_running.png'), {
     frameWidth: 107,
@@ -472,44 +478,49 @@ class Hero extends _Sprite {
     screenX = 0
     dx = 0
     dy = 0
-    damageTime = null
-    autoTransformImg = false
+    life = 3
+    lastDamageTime = -DAMAGE_GRACE_TIME
+    z = WALKING_Z
 
     update(dt){
         super.update(dt)
         this.x = this.screenX + this.scene.viewX
         if(this.scene.step == "ONGOING") {
-            //this.updAnim(dt)
+            this.updAnim(dt)
             this.applyPlayerControls(dt)
         }
     }
-    // damage(n) {
-    //     const scn = this.scene
-    //     scn.score -= n
-    //     scn.addSprite(Notif, {
-    //         x: this.x,
-    //         y: HERO_Y - 50,
-    //         value: "-" + n,
-    //         color: "red"
-    //     })
-    //     scn.addSprite(MSG.Flash, {
-    //         width: WIDTH,
-    //         height: HEIGHT,
-    //         rgb: "255,0,0",
-    //         fixed: true
-    //     })
-    //     this.damageTime = this.time
-    //     ouchAud.replay()
-    // }
-    // updAnim(dt){
-    //     if(this.damageTime !== null && this.time < this.damageTime + 1) {
-    //         this.anim = HeroAnims.aouch
-    //         this.animAlpha = ((this.time - this.damageTime) / .2) % 1 < .5
-    //     } else {
-    //         this.anim = HeroAnims.run
-    //         delete this.animAlpha
-    //     }
-    // }
+    inGrace(){
+        return this.time < this.lastDamageTime + DAMAGE_GRACE_TIME
+    }
+    damage() {
+        if(this.inGrace()) return
+        const scn = this.scene
+        // scn.score -= n
+        // scn.addSprite(Notif, {
+        //     x: this.x,
+        //     y: HERO_Y - 50,
+        //     value: "-" + n,
+        //     color: "red"
+        // })
+        this.life -= 1
+        scn.addSprite(MSG.Flash, {
+            width: WIDTH,
+            height: HEIGHT,
+            rgb: "255,0,0",
+            viewF: 0,
+            z: NOTIF_Z,
+        })
+        this.lastDamageTime = this.time
+        //ouchAud.replay()
+    }
+    updAnim(dt){
+        if(this.inGrace()) {
+            this.animAlpha = ((this.time - this.lastDamageTime) / .2) % 1 < .5 ? 0 : 1
+        } else {
+            delete this.animAlpha
+        }
+    }
     applyPlayerControls(dt){
         const pointer = this.scene.game.pointer
         if (pointer.isDown) {
@@ -521,6 +532,21 @@ class Hero extends _Sprite {
         }
         this.screenX = bound(this.screenX + this.dx * dt, this.width/2, WIDTH - this.width/2)
         this.y = bound(this.y + this.dy * dt, GROUND_Y + this.height*.7, HEIGHT)
+    }
+    getHitBox() {
+        const { x, y, width, height } = this.getBoundaries()
+        return {
+            x: x + 10,
+            y: y + 20,
+            width: width - 20,
+            height: height - 20,
+        }
+    }
+    shoot() {
+        this.scene.addSprite(Iceball, {
+            x: this.x + 70,
+            y: this.y - 80
+        })
     }
 }
 
@@ -542,41 +568,99 @@ const FireballAnim = new Anim(range(9).map(i => FireballSS.getFrame(i)), { fps: 
 
 class Fireball extends _Sprite {
 
-    width = 100
-    height = 70
-    screenX = 0
+    width = 130
+    height = 100
     speed = FIREBALL_SPEED
     anim = FireballAnim
-    anchorX = ANCHOR_X
-    anchorY = ANCHOR_Y
+    anchorX = 1
+    anchorY = 1
+    z = FLYING_Z
+
+    start() {
+        this.initPos()
+    }
+
+    initPos() {
+        const distanceToTarget = 500
+        this.screenX = this.targetX - distanceToTarget * cos(this.angle)
+        this.y = this.targetY - distanceToTarget * sin(this.angle)
+        this.shadow = this.scene.addSprite(Shadow, {
+            x: this.targetX,
+            y: this.targetY
+        })
+    }
 
     update(dt){
         super.update(dt)
+        this.updPos(dt)
+        this.checkExistence()
+    }
+
+    updPos(dt) {
         this.screenX += this.speed * cos(this.angle) * dt
         this.x = this.screenX + this.scene.viewX
         this.y += this.speed * sin(this.angle) * dt
     }
+
+    checkExistence() {
+        if(this.y >= this.targetY) {
+            this.scene.addSprite(Explosion, { x:this.x, y:this.y })
+            this.scene.addSprite(Fire, { x:this.x, y:this.y })
+            this.remove()
+            this.shadow.remove()
+            this.scene.score += 1
+        }
+    }
+
+    getHitBox() {
+        const { x, y } = this.getBoundaries()
+        return {
+            x: x + 80,
+            y: y + 50,
+            width: 50,
+            height: 50,
+        }
+    }
+}
+
+class VolcanoFireball extends Fireball {
+
+    width = 25
+    height = 17
+    speed = FIREBALL_SPEED/4
+    viewF = 0
+    z = VOLCANO_FIREBALL_Z
+
+    initPos() {}
+
+    updPos(dt) {
+        this.x += this.speed * cos(this.angle) * dt
+        this.y += this.speed * sin(this.angle) * dt
+    }
+
+    checkExistence() {
+        if (this.time > 5) this.remove()
+    }
 }
 
 function createRandomFireball(scn) {
-    if(rand()>.02) return
+    const nTime = scn.nextFireballTime || 0
+    if(nTime > scn.time)
+        return
     scn.addSprite(Fireball, {
-        screenX: rand() * 200,
-        y: 0,
+        targetX: WIDTH - (300 * pow(rand(), 1.5)),
+        targetY: GROUND_Y + (HEIGHT - GROUND_Y) * rand(),
         angle: PI/4,
     })
+    scn.nextFireballTime = scn.time + 2 / (1 + scn.score / 10)
 }
 
 function createRandomVolcanoFireball(scn) {
-    if(rand()>.05) return
-    scn.addSprite(Fireball, {
-        width: 25,
-        height: 17,
-        screenX: 75,
+    if(rand()>.02) return
+    scn.addSprite(VolcanoFireball, {
+        x: 70,
         y: 40,
         angle: -1 * (PI/4 + rand() * PI/2),
-        speed: FIREBALL_SPEED/4,
-        ttl: 5,
     })
 }
 
@@ -584,17 +668,192 @@ ExampleScene.updaters.push(createRandomFireball)
 ExampleScene.updaters.push(createRandomVolcanoFireball)
 
 
+// iceball
+
+const ICEBALL_SPEED = 500
+
+const IceballSS = new SpriteSheet(absPath('assets/iceball.png'), {
+    frameWidth: 2250/9,
+    frameHeight: 175
+})
+const IceballAnim = new Anim(range(9).map(i => IceballSS.getFrame(i)), { fps: 15 })
+
+class Iceball extends _Sprite {
+
+    width = 75
+    height = 53
+    speed = ICEBALL_SPEED
+    anim = IceballAnim
+    anchorX = 1
+    anchorY = 0
+    z = FLYING_Z
+    angle = - PI / 4
+
+    start() {
+        this.screenX = this.x - this.scene.viewX
+    }
+
+    update(dt){
+        super.update(dt)
+        this.updPos(dt)
+        this.checkExistence()
+        this.scene.sprites.forEach(fireball => {
+            if(!(fireball instanceof Fireball)) return
+            if (MSG.collide(this.getHitBox(), fireball.getHitBox())) this.hit(fireball)
+        })
+    }
+
+    updPos(dt) {
+        this.screenX += this.speed * cos(this.angle) * dt
+        this.x = this.screenX + this.scene.viewX
+        this.y += this.speed * sin(this.angle) * dt
+    }
+
+    checkExistence() {
+        if(this.y + this.height < 0) this.remove
+    }
+
+    getHitBox() {
+        const { x, y } = this.getBoundaries()
+        return {
+            x: x + 50,
+            y,
+            width: 25,
+            height: 25,
+        }
+    }
+
+    hit(fireball) {
+        this.remove()
+        fireball.remove()
+        this.scene.addSprite(IceExplosion, {
+            x: fireball.x,
+            y: fireball.y,
+        })
+    }
+}
+
+
+// ice explosion
+
+const IceExplosionSS = new SpriteSheet(absPath('assets/sprite_ice_explosion.png'), {
+    frameWidth: 300/3,
+    frameHeight: 188/2
+})
+const IceExplosionAnim = new Anim(range(6).map(i => IceExplosionSS.getFrame(i)), { fps: 15, loop: false })
+
+class IceExplosion extends _Sprite {
+
+    width = 150
+    height = 150
+    anim = IceExplosionAnim
+    anchorX = .5
+    anchorY = .5
+    z = EXPLOSION_Z
+
+    update(dt) {
+        super.update(dt)
+        if(this.time >= .5) this.remove()
+    }
+}
+
+// shadow
+
+class Shadow extends _Sprite {
+
+    width = 30
+    height = 15
+    anim = "black"
+    animShape = "circle"
+    animAlpha = .5
+    viewF = 0
+    anchorX = .5
+    anchorY = .5
+    z = SHADOW_Z
+}
+
+
+// explosion
+
+const ExplosionSS = new SpriteSheet(absPath('assets/sprite_explosion.png'), {
+    frameWidth: 300/3,
+    frameHeight: 188/2
+})
+const ExplosionAnim = new Anim(range(6).map(i => ExplosionSS.getFrame(i)), { fps: 15, loop: false })
+
+class Explosion extends _Sprite {
+
+    width = 150
+    height = 150
+    anim = ExplosionAnim
+    anchorX = .5
+    anchorY = .5
+    z = EXPLOSION_Z
+
+    start() {
+        super.start()
+        if (MSG.collide(this, this.scene.hero.getHitBox())) {
+            this.scene.hero.damage()
+        }
+    }
+
+    update(dt) {
+        super.update(dt)
+        if(this.time >= .5) this.remove()
+    }
+}
+
+// fire
+
+const FireSS = new SpriteSheet(absPath('assets/sprite_fire.png'), {
+    frameWidth: 900/9,
+    frameHeight: 100
+})
+const FireAnim = new Anim(range(9).map(i => FireSS.getFrame(i)), { fps: 15 })
+
+class Fire extends _Sprite {
+
+    width = 50
+    height = 50
+    anim = FireAnim
+    anchorX = .5
+    anchorY = 1
+    z = WALKING_Z
+
+    start() {
+        super.start()
+    }
+
+    update(dt) {
+        super.update(dt)
+        if(this.x+this.width < this.scene.viewX) this.remove()
+        if (MSG.collide(this.getHitBox(), this.scene.hero.getHitBox())) {
+            this.scene.hero.damage()
+        }
+    }
+
+    getHitBox() {
+        const { x, y, width, height } = this.getBoundaries()
+        return {
+            x: x + 10,
+            y: y + 20,
+            width: width - 20,
+            height: height - 20,
+        }
+    }
+}
+
+
 // score
 
 ExampleScene.ongoers.push(scn => {
-    scn.score = 10
     scn.addSprite(Text, {
         x: 450,
         y: 15,
         value: () => `Score: ${scn.score}`,
         color: "red",
         viewF: 0,
-        z: 10
+        z: NOTIF_Z,
     })
 })
 
@@ -616,7 +875,6 @@ ExampleScene.ongoers.push(scn => {
 //         this.anchorX = ANCHOR_X
 //         this.anchorY = ANCHOR_Y
 //         this.score = 1
-//         this.autoTransformImg = false
 //     }
 //     update(dt){
 //         super.update(dt)
