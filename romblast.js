@@ -257,6 +257,9 @@ class VolumeBut extends Sprite {
             volumeMuted = !volumeMuted
             MSG.setVolumeLevel(volumeMuted ? 0 : VOLUME_LEVEL)
             this.syncAnim()
+            this.scene.canvas.requestFullscreen({
+                navigationUI: "hide"
+            })
         })
     }
     syncAnim() {
