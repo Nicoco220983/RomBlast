@@ -455,6 +455,7 @@ class Hero extends _Sprite {
     life = 3
     lastDamageTime = -DAMAGE_GRACE_TIME
     z = WALKING_Z
+    startPointerX = null
 
     update(dt){
         super.update(dt)
@@ -498,9 +499,16 @@ class Hero extends _Sprite {
     applyPlayerControls(dt){
         const pointer = this.scene.game.pointer
         if (pointer.isDown) {
-            this.dx = MSG.accToPos(this.screenX, pointer.x, this.dx, SPDMAX, ACC, DEC, dt)
-            this.dy = MSG.accToPos(this.y, pointer.y, this.dy, SPDMAX, ACC, DEC, dt)
+            if(this.startPointerX === null) {
+                this.startPointerX = pointer.x
+                this.startPointerY = pointer.y
+                this.startScreenX = this.screenX
+                this.startY = this.y
+            }
+            this.dx = MSG.accToPos(this.screenX, this.startScreenX + pointer.x - this.startPointerX, this.dx, SPDMAX, ACC, DEC, dt)
+            this.dy = MSG.accToPos(this.y, this.startY + pointer.y - this.startPointerY, this.dy, SPDMAX, ACC, DEC, dt)
         } else {
+            this.startPointerX = null
             this.dx = MSG.accToSpd(this.dx, 0, ACC, DEC, dt)
             this.dy = MSG.accToSpd(this.dy, 0, ACC, DEC, dt)
         }
