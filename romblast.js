@@ -13,7 +13,7 @@ const RUN_SPD = 400
 const ANCHOR_X = .5
 const ANCHOR_Y = 1
 
-const VOLUME_LEVEL = 0.3
+Aud.MaxVolumeLevel = 0.3
 
 let it = 0
 const SKY_Z = it++
@@ -39,11 +39,15 @@ export class ExampleGame extends Game {
         super.start()
         document.addEventListener("focus", () => this.pause(false))
         document.addEventListener("blur", () => this.pause(true))
-        this.on("click", (...args) => {
-            this.scene.trigger("click", ...args)
-            this.addVolumeBut()
-            if (MSG.collide(this.volumeBut, this.pointer))
-                this.volumeBut.trigger("click")
+        this.addGameButtons()
+        this.addPointerDownListener(pos => {
+            for(let but of this.gameButs) {
+                if (MSG.collide(but, pos)) {
+                    but.trigger("click")
+                    return
+                }
+            }
+            this.scene.trigger("click", pos)
         })
         this.on("dblclick", (...args) => {
             this.scene.trigger("dblclick", ...args)
@@ -66,17 +70,21 @@ export class ExampleGame extends Game {
         const ctx = this.canvas.getContext("2d")
         this.scene.drawTo(ctx, this.paused ? 0 : dt)
         if(this.paused) this.pauseScene.drawTo(ctx, dt)
-        if(this.volumeBut) this.volumeBut.drawTo(ctx, dt, 0, 0)
+        this.gameButs.forEach(b => b.drawTo(ctx, dt, 0, 0))
     }
-    addVolumeBut() {
-        if(this.volumeBut) return
-        this.volumeBut = new VolumeBut(this)
-        this.volumeBut.set({ x: this.width - 40, y: 40 })
-    }
-    pause(val) {
-        if (val === this.paused) return
-        this.paused = val
-        MSG.pauseAudios(val)
+    addGameButtons() {
+        this.gameButs = []
+        const size = 40, padding = 10
+        for(let cls of [MSG.VolumeBut, MSG.FullscreenBut, MSG.PauseBut]) {
+            this.gameButs.push(new cls(this, {
+                anchorX: 1,
+                anchorY: 0,
+                width: size,
+                height: size,
+                x: this.width - padding - (size + padding) * this.gameButs.length,
+                y: padding,
+            }))
+        }
     }
 }
 
@@ -215,7 +223,7 @@ class PauseScene extends Scene {
     initCanvas() {
         // background
         const ctx = this.canvas.getContext("2d")
-        ctx.fillStyle = "rgb(0,0,0,0.5)"
+        ctx.fillStyle = "rgb(0,0,0,0.2)"
         ctx.fillRect(0, 0, this.width, this.height)
         // text
         const text = new Text(this, {
