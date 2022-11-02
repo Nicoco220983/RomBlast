@@ -97,29 +97,35 @@ class ExampleScene extends Scene {
 
     start() {
         super.start()
-        this.step = "START"
-        //this.addIntroSprites()
-        //this.on("click", () => this.ongoing())
-        this.initHero()
-        ExampleScene.starters.forEach(fn => fn(this))
-        this.ongoing()
+        this.setStep("START")
+    }
+    setStep(step) {
+        this.step = step
+        if(step === "START") {
+            ExampleScene.starters.forEach(fn => fn(this))
+            this.addIntroSprites()
+            this.once("click", () => this.setStep("GAME"))
+        } else if(step === "GAME") {
+            this.introSprites.forEach(s => s.remove())
+            ExampleScene.ongoers.forEach(fn => fn(this))
+            this.initHero()
+            // const aud = new Aud(absPath('assets/music.mp3'))
+            // MSG.waitLoads(aud).then(() => aud.replay({ baseVolume: .2, loop: true }))
+            // this.once("remove", () => aud.pause())
+        }
     }
     initHero(){
-        this.hero = this.addSprite(Hero, {
-            screenX: 200,
-            x: 200,
-            y: HEIGHT/2,
-        })
+        this.hero = this.addSprite(Hero)
         this.on("dblclick", () => {
-            if(this.step !== "ONGOING") return
+            if(this.step !== "GAME") return
             this.hero.shoot()
         })
     }
     update(dt) {
         super.update(dt)
-        if (this.step == "ONGOING") {
-            this.viewX += RUN_SPD * dt
-            ExampleScene.updaters.forEach(fn => fn(this))
+        this.viewX += RUN_SPD * dt
+        ExampleScene.updaters.forEach(fn => fn(this))
+        if (this.step == "GAME") {
             if (this.hero.life == 0) this.finish()
         }
     }
@@ -136,40 +142,31 @@ class ExampleScene extends Scene {
             sprite.drawTo(ctx, dt, viewX * viewF, viewY * viewF)
         })
     }
-    // addIntroSprites() {
-    //     this.introSprites = []
-    //     const addIntro = (cls, kwargs) => {
-    //         const sprite = this.addSprite(cls, kwargs)
-    //         this.introSprites.push(sprite)
-    //     }
-    //     const args = {
-    //         x: WIDTH / 2,
-    //         font: "20px Arial",
-    //         anchorX: .5,
-    //         anchorY: 0
-    //     }
-    //     addIntro(Text, {
-    //         ...args, y: 60,
-    //         value: "MsGame",
-    //         font: "60px Arial",
-    //     })
-    //     addIntro(Text, {
-    //         ...args, y: 130,
-    //         value: "What a light game engine !",
-    //         lineHeight: 30
-    //     })
-    //     addIntro(Text, {
-    //         ...args, y: 550,
-    //         value: "Touchez pour commencer"
-    //     })
-    // }
-    ongoing() {
-        if (this.step != "START") return
-        this.step = "ONGOING"
-        ExampleScene.ongoers.forEach(fn => fn(this))
-        // const aud = new Aud(absPath('assets/music.mp3'))
-        // MSG.waitLoads(aud).then(() => aud.replay({ baseVolume: .2, loop: true }))
-        // this.once("remove", () => aud.pause())
+    addIntroSprites() {
+        log("TMP addIntroSprites")
+        this.introSprites = []
+        const addIntro = (cls, kwargs) => {
+            const sprite = this.addSprite(cls, kwargs)
+            this.introSprites.push(sprite)
+        }
+        const args = {
+            x: WIDTH / 2,
+            font: "20px Arial",
+            color: "red",
+            anchorX: .5,
+            anchorY: 0,
+            z: NOTIF_Z,
+            viewF: 0,
+        }
+        addIntro(Text, {
+            ...args, y: 150,
+            value: "RomBlast",
+            font: "60px Arial",
+        })
+        addIntro(Text, {
+            ...args, y: 350,
+            value: "Touchez pour commencer"
+        })
     }
     finish() {
         this.step = "END"
@@ -180,13 +177,13 @@ class ExampleScene extends Scene {
             color: "red",
             anchorX: .5,
             anchorY: 0,
-            viewF: 0
+            z: NOTIF_Z,
+            viewF: 0,
         }
         this.addSprite(Text, {
             ...args,
             y: 200,
             value: `FINITO`,
-            z: NOTIF_Z,
         })
         // font = "20px Arial"
         // let text = "J'espere que ce jeu vous a plu ;)"
@@ -449,21 +446,22 @@ class Hero extends _Sprite {
     height = 67
     anchorX = ANCHOR_X
     anchorY = ANCHOR_Y
-    screenX = 0
+    screenX = -50
+    x = -50
+    y = HEIGHT*2/3
     dx = 0
     dy = 0
     life = 3
     lastDamageTime = -DAMAGE_GRACE_TIME
     z = WALKING_Z
-    startPointerX = null
+    startPos = null
+    step = "INTRO"
 
     update(dt){
         super.update(dt)
+        this.updAnim(dt)
+        this.applyPlayerControls(dt)
         this.x = this.screenX + this.scene.viewX
-        if(this.scene.step == "ONGOING") {
-            this.updAnim(dt)
-            this.applyPlayerControls(dt)
-        }
     }
     inGrace(){
         return this.time < this.lastDamageTime + DAMAGE_GRACE_TIME
@@ -497,18 +495,26 @@ class Hero extends _Sprite {
         }
     }
     applyPlayerControls(dt){
+        if(this.step === "INTRO") {
+            this.dx = MSG.accToPos(this.screenX, this.width, this.dx, SPDMAX, ACC, DEC, dt)
+            this.screenX +=this.dx * dt
+            if(this.screenX > this.width) this.step = "GAME"
+            return
+        }
         const pointer = this.scene.game.pointer
         if (pointer.isDown) {
-            if(this.startPointerX === null) {
-                this.startPointerX = pointer.x
-                this.startPointerY = pointer.y
-                this.startScreenX = this.screenX
-                this.startY = this.y
+            if(this.startPos === null) {
+                this.startPos = {
+                    pointerX: pointer.x,
+                    pointerY: pointer.y,
+                    screenX: this.screenX,
+                    y: this.y,
+                }
             }
-            this.dx = MSG.accToPos(this.screenX, this.startScreenX + pointer.x - this.startPointerX, this.dx, SPDMAX, ACC, DEC, dt)
-            this.dy = MSG.accToPos(this.y, this.startY + pointer.y - this.startPointerY, this.dy, SPDMAX, ACC, DEC, dt)
+            this.dx = MSG.accToPos(this.screenX, this.startPos.screenX + pointer.x - this.startPos.pointerX, this.dx, SPDMAX, ACC, DEC, dt)
+            this.dy = MSG.accToPos(this.y, this.startPos.y + pointer.y - this.startPos.pointerY, this.dy, SPDMAX, ACC, DEC, dt)
         } else {
-            this.startPointerX = null
+            this.startPos = null
             this.dx = MSG.accToSpd(this.dx, 0, ACC, DEC, dt)
             this.dy = MSG.accToSpd(this.dy, 0, ACC, DEC, dt)
         }
@@ -633,6 +639,7 @@ class VolcanoFireball extends _Sprite {
 }
 
 function createRandomFireball(scn) {
+    if(scn.step !== "GAME") return
     const nTime = scn.nextFireballTime || 0
     if(nTime > scn.time)
         return
