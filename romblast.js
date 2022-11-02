@@ -270,8 +270,8 @@ class Notif extends Text {
 
 ExampleScene.ongoers.push(scn => {
     scn.addSprite(Text, {
-        x: 450,
-        y: 40,
+        x: 350,
+        y: 30,
         value: () => `Life: ${scn.hero.life}`,
         color: "red",
         viewF: 0,
@@ -829,8 +829,8 @@ class Fire extends _Sprite {
 
 ExampleScene.ongoers.push(scn => {
     scn.addSprite(Text, {
-        x: 450,
-        y: 15,
+        x: 350,
+        y: 5,
         value: () => `Score: ${scn.score}`,
         color: "red",
         viewF: 0,
