@@ -551,10 +551,6 @@ class Fireball extends _Sprite {
     z = FLYING_Z
 
     start() {
-        this.initPos()
-    }
-
-    initPos() {
         const distanceToTarget = 500
         this.screenX = this.targetX - distanceToTarget * cos(this.angle)
         this.y = this.targetY - distanceToTarget * sin(this.angle)
@@ -581,9 +577,13 @@ class Fireball extends _Sprite {
             this.scene.addSprite(Explosion, { x:this.x, y:this.y })
             this.scene.addSprite(Fire, { x:this.x, y:this.y })
             this.remove()
-            this.shadow.remove()
-            this.scene.score += 1
         }
+    }
+
+    remove() {
+        super.remove()
+        this.shadow.remove()
+        this.scene.score += 1
     }
 
     getHitBox() {
@@ -597,15 +597,22 @@ class Fireball extends _Sprite {
     }
 }
 
-class VolcanoFireball extends Fireball {
+class VolcanoFireball extends _Sprite {
 
     width = 25
     height = 17
     speed = FIREBALL_SPEED/4
+    anim = FireballAnim
+    anchorX = 1
+    anchorY = 1
     viewF = 0
     z = VOLCANO_FIREBALL_Z
 
-    initPos() {}
+    update(dt){
+        super.update(dt)
+        this.updPos(dt)
+        this.checkExistence()
+    }
 
     updPos(dt) {
         this.x += this.speed * cos(this.angle) * dt
