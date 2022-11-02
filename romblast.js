@@ -3,7 +3,7 @@ const { abs, floor, min, max, pow, random: rand, cos, sin, tan, PI } = Math
 const { log } = console
 
 import * as MSG from './msgame.js'
-const { Game, Scene, Sprite, SpriteSheet, Anim, Text, Aud } = MSG
+const { Game, Scene, Sprite, SpriteSheet, Anim, Text, Aud, absPath } = MSG
 const { randge, range, bound } = MSG
 
 // game
@@ -235,43 +235,6 @@ class PauseScene extends Scene {
             value: "Pause"
         })
         text.drawTo(ctx, 0, 0, 0)
-    }
-}
-
-// volume
-
-let volumeMuted = false
-
-MSG.setVolumeLevel(VOLUME_LEVEL)
-
-const volumeSS = new SpriteSheet(absPath('assets/volume.png'), {
-    frameWidth: 50,
-    frameHeight: 50
-})
-
-const VolumeAnims = [0, 1].map(i => new Anim(volumeSS.getFrame(i)))
-
-class VolumeBut extends Sprite {
-
-    width = 50
-    height = 50
-    anchorX = .5
-    anchorY = .5
-
-    constructor(...args) {
-        super(...args)
-        this.syncAnim()
-        this.on("click", () => {
-            volumeMuted = !volumeMuted
-            MSG.setVolumeLevel(volumeMuted ? 0 : VOLUME_LEVEL)
-            this.syncAnim()
-            this.scene.canvas.requestFullscreen({
-                navigationUI: "hide"
-            })
-        })
-    }
-    syncAnim() {
-        this.anim = VolumeAnims[volumeMuted ? 1 : 0]
     }
 }
 
@@ -907,10 +870,3 @@ ExampleScene.ongoers.push(scn => {
 //         scn.enemyNextTime = scn.time + randge(.3, .7)
 //     }
 // })
-
-// utils
-
-function absPath(relPath){
-    const url = new URL(relPath, import.meta.url)
-    return url.pathname
-}
