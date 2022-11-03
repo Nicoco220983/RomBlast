@@ -12,7 +12,7 @@ const WIDTH = 600, HEIGHT = 400
 const RUN_SPD = 400
 const ANCHOR_X = .5
 const ANCHOR_Y = 1
-const LIFE = 1
+const LIFE = 3
 const FONT = "Serif"
 
 Aud.MaxVolumeLevel = 0.3
