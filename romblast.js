@@ -566,7 +566,7 @@ class Fireball extends _Sprite {
 
     start() {
         const distanceToTarget = 500
-        this.screenX = this.targetX - distanceToTarget * cos(this.angle)
+        this.screenX = this.targetX - distanceToTarget * cos(this.angle) + 40
         this.y = this.targetY - distanceToTarget * sin(this.angle)
         this.shadow = this.scene.addSprite(Shadow, {
             x: this.targetX,
@@ -643,9 +643,10 @@ function createRandomFireball(scn) {
     const nTime = scn.nextFireballTime || 0
     if(nTime > scn.time)
         return
+    const minY = GROUND_Y + 40
     scn.addSprite(Fireball, {
         targetX: WIDTH - (300 * pow(rand(), 1.5)),
-        targetY: GROUND_Y + (HEIGHT - GROUND_Y) * rand(),
+        targetY: minY+ (HEIGHT - minY) * rand(),
         angle: PI/4,
     })
     scn.nextFireballTime = scn.time + 2 / (1 + scn.score / 10)
