@@ -632,7 +632,7 @@ class VolcanoFireball extends _Sprite {
 }
 
 function createRandomFireball(scn) {
-    if(scn.step !== "GAME") return
+    if(scn.step === "INTRO") return
     const nTime = scn.nextFireballTime || 0
     if(nTime > scn.time)
         return
@@ -642,16 +642,23 @@ function createRandomFireball(scn) {
         targetY: minY+ (HEIGHT - minY) * rand(),
         angle: PI/4,
     })
-    scn.nextFireballTime = scn.time + 2 / (1 + scn.score / 10)
+    scn.nextFireballTime = getNextFireballTime(scn)
 }
 
 function createRandomVolcanoFireball(scn) {
-    if(rand()>.02) return
+    const nTime = scn.nextVolcanoFireballTime || 0
+    if(nTime > scn.time)
+        return
     scn.addSprite(VolcanoFireball, {
-        x: 70,
+        x: 80,
         y: 40,
         angle: -1 * (PI/4 + rand() * PI/2),
     })
+    scn.nextVolcanoFireballTime = getNextFireballTime(scn)
+}
+
+function getNextFireballTime(scn) {
+    return scn.time + 2 / (1 + scn.score / 10)
 }
 
 ExampleScene.updaters.push(createRandomFireball)
