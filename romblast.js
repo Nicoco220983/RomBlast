@@ -12,7 +12,8 @@ const WIDTH = 600, HEIGHT = 400
 const RUN_SPD = 400
 const ANCHOR_X = .5
 const ANCHOR_Y = 1
-const LIFE = 3
+const LIFE = 1
+const FONT = "Serif"
 
 Aud.MaxVolumeLevel = 0.3
 
@@ -154,7 +155,7 @@ class ExampleScene extends Scene {
     addIntroSprites() {
         const args = {
             x: WIDTH / 2,
-            font: "20px Arial",
+            font: `20px ${FONT}`,
             color: "red",
             anchorX: .5,
             anchorY: 0,
@@ -163,9 +164,9 @@ class ExampleScene extends Scene {
             isIntro: true,
         }
         this.addSprite(Text, {
-            ...args, y: 150,
+            ...args, y: 180,
             value: "RomBlast",
-            font: "60px Arial",
+            font: `60px Cursive`,
         })
         this.addSprite(Text, {
             ...args, y: 350,
@@ -183,14 +184,14 @@ class ExampleScene extends Scene {
         }
         this.addSprite(Text, {
             ...args,
-            y: 200,
-            font: "30px Arial",
+            y: 180,
             value: `GAME OVER`,
+            font: `60px Cursive`,
         })
         this.on(1, () => {
             this.addSprite(Text, {
                 ...args, y: 350,
-                font: "20px Arial",
+                font: `20px ${FONT}`,
                 value: "Touchez pour recommencer"
             })
             this.once("click", () => {
@@ -220,7 +221,7 @@ class PauseScene extends Scene {
         const text = new Text(this, {
             x: this.width/2,
             y: this.height/2,
-            font: "40px Arial",
+            font: `40px ${FONT}`,
             anchorX: .5,
             anchorY: .5,
             value: "Pause"
@@ -265,6 +266,7 @@ ExampleScene.ongoers.push(scn => {
         y: 10,
         value: () => `Life: ${scn.hero.life}`,
         color: "red",
+        font: `20px ${FONT}`,
         viewF: 0,
         z: NOTIF_Z,
     })
@@ -849,6 +851,7 @@ ExampleScene.ongoers.push(scn => {
         x: 330,
         y: 10,
         value: () => `Score: ${scn.score}`,
+        font: `20px ${FONT}`,
         color: "red",
         viewF: 0,
         z: NOTIF_Z,
