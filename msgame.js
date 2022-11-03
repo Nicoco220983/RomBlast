@@ -450,6 +450,7 @@ export class Sprite extends Elem {
         if (this.animFlipY) args.flipY = true
         const animAlpha = this.animAlpha
         if (animAlpha !== undefined && animAlpha !== null) args.alpha = this.animAlpha
+        if(this.animCompose) args.compose = this.animCompose
         return args
         //if(this.angle) transArgs = this.getImgAngleArgs(img)
     }
@@ -560,6 +561,15 @@ export class Anim {
             ctx.scale(kwargs.flipX ? -1 : 1, kwargs.flipY ? -1 : 1)
             ctx.rotate(angle)
             ctx.drawImage(img, -width/2, -height/2, width, height)
+            if(kwargs.compose) {
+                const [compKey, compColor] = kwargs.compose.split(':')
+                const compCan = _createCan(awidth, aheight), compCtx = _ctx(compCan)
+                compCtx.fillStyle = compColor
+                compCtx.fillRect(0, 0, awidth, aheight)
+                ctx.globalCompositeOperation = compKey
+                ctx.drawImage(compCan, -awidth/2, -aheight/2, awidth, aheight)
+                ctx.globalCompositeOperation = "source-over"
+            }
             can.dx = width - awidth
             can.dy = height - aheight
             return can
