@@ -84,6 +84,7 @@ export class ExampleGame extends Game {
                 height: size,
                 x: this.width - padding - (size + padding) * this.gameButs.length,
                 y: padding,
+                animCompose: "source-in:red",
             }))
         }
     }
