@@ -117,9 +117,9 @@ class ExampleScene extends Scene {
             this.sprites.forEach(s => { if(s.isIntro) s.remove() })
             ExampleScene.ongoers.forEach(fn => fn(this))
             this.initHero()
-            // const aud = new Aud(absPath('assets/music.mp3'))
-            // MSG.waitLoads(aud).then(() => aud.replay({ baseVolume: .2, loop: true }))
-            // this.once("remove", () => aud.pause())
+            const aud = new Aud(absPath('assets/Gigakoops-Revenge_from_Behind_the_Grave.mp3'))
+            MSG.waitLoads(aud).then(() => aud.replay({ baseVolume: .2, loop: true }))
+            this.once("remove", () => aud.remove())
         } else if(step === "GAMEOVER") {
             this.hero.remove()
             this.addGameoverSprites()
@@ -592,7 +592,7 @@ class Fireball extends _Sprite {
 
     remove() {
         super.remove()
-        this.shadow.remove()
+        if(this.shadow) this.shadow.remove()
         if(this.scene.step === "GAME") this.scene.score += 1
     }
 
