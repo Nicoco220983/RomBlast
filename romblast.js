@@ -53,10 +53,10 @@ export class ExampleGame extends Game {
         this.on("dblclick", (...args) => {
             this.scene.trigger("dblclick", ...args)
         })
-        this.restart()
+        this.restart("INTRO")
     }
-    restart() {
-        this.scene = new ExampleScene(this)
+    restart(step) {
+        this.scene = new ExampleScene(this, step)
     }
     update(dt) {
         super.update(dt)
@@ -93,21 +93,26 @@ export class ExampleGame extends Game {
 
 class ExampleScene extends Scene {
 
-    step = null
     score = 0
 
+    constructor(game, startStep, kwargs){
+        super(game)
+        this.startStep = startStep
+        if(kwargs) this.set(kwargs)
+    }
     start() {
         super.start()
-        this.setStep("START")
+        ExampleScene.starters.forEach(fn => fn(this))
+        this.setStep(this.startStep)
     }
     setStep(step) {
+        if(step === this.step) return
         this.step = step
-        if(step === "START") {
-            ExampleScene.starters.forEach(fn => fn(this))
+        if(step === "INTRO") {
             this.addIntroSprites()
             this.once("click", () => this.setStep("GAME"))
         } else if(step === "GAME") {
-            this.introSprites.forEach(s => s.remove())
+            this.sprites.forEach(s => { if(s.isIntro) s.remove() })
             ExampleScene.ongoers.forEach(fn => fn(this))
             this.initHero()
             // const aud = new Aud(absPath('assets/music.mp3'))
@@ -146,11 +151,6 @@ class ExampleScene extends Scene {
         })
     }
     addIntroSprites() {
-        this.introSprites = []
-        const addIntro = (cls, kwargs) => {
-            const sprite = this.addSprite(cls, kwargs)
-            this.introSprites.push(sprite)
-        }
         const args = {
             x: WIDTH / 2,
             font: "20px Arial",
@@ -159,13 +159,14 @@ class ExampleScene extends Scene {
             anchorY: 0,
             z: NOTIF_Z,
             viewF: 0,
+            isIntro: true,
         }
-        addIntro(Text, {
+        this.addSprite(Text, {
             ...args, y: 150,
             value: "RomBlast",
             font: "60px Arial",
         })
-        addIntro(Text, {
+        this.addSprite(Text, {
             ...args, y: 350,
             value: "Touchez pour commencer"
         })
@@ -185,7 +186,7 @@ class ExampleScene extends Scene {
             font: "30px Arial",
             value: `GAME OVER`,
         })
-        this.on(2, () => {
+        this.on(1, () => {
             this.addSprite(Text, {
                 ...args, y: 350,
                 font: "20px Arial",
@@ -193,7 +194,7 @@ class ExampleScene extends Scene {
             })
             this.once("click", () => {
                 this.remove()
-                this.game.restart()
+                this.game.restart("GAME")
             })
         })
     }
