@@ -79,25 +79,31 @@ class Elem {
     update(dt) {
         if(this.time === 0) this.start()
         this.time += dt
-        this.trigger("update", dt)
+        if(this._timeEvents) this.applyTimeEvents()
     }
 
     on(evt, callback) {
-        let evts = this._events
-        if (!evts) evts = this._events = {}
-        let callbacks = evts[evt]
-        if (!callbacks) callbacks = evts[evt] = {}
-        if (typeof callback === "function") {
-            for (let i = 0; ; ++i) {
-                const key = "_" + i
-                if (callbacks[key] === undefined) {
-                    callbacks[key] = callback
-                    return
+        if(typeof evt === "string") {
+            let evts = this._events
+            if (!evts) evts = this._events = {}
+            let callbacks = evts[evt]
+            if (!callbacks) callbacks = evts[evt] = {}
+            if (typeof callback === "function") {
+                for (let i = 0; ; ++i) {
+                    const key = "_" + i
+                    if (callbacks[key] === undefined) {
+                        callbacks[key] = callback
+                        return
+                    }
                 }
+            } else if(typeof callback === "object") {
+                for (let key in callback)
+                    callbacks[key] = callback[key]
             }
-        } else {
-            for (let key in callback)
-                callbacks[key] = callback[key]
+        } else if(typeof evt === "number") {
+            let evts = this._timeEvents
+            if (!evts) evts = this._timeEvents = []
+            evts.push([evt + this.time, callback])
         }
     }
 
@@ -124,6 +130,16 @@ class Elem {
             if (callbacks[key].call(this, ...args) === false)
                 delete callbacks[key]
         }
+    }
+
+    applyTimeEvents() {
+        this._timeEvents = this._timeEvents.filter(([time, callback]) => {
+            if(this.time >= time) {
+                callback()
+                return false
+            }
+            return true
+        })
     }
 
     remove() {

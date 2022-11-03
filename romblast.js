@@ -12,6 +12,7 @@ const WIDTH = 600, HEIGHT = 400
 const RUN_SPD = 400
 const ANCHOR_X = .5
 const ANCHOR_Y = 1
+const LIFE = 3
 
 Aud.MaxVolumeLevel = 0.3
 
@@ -112,22 +113,24 @@ class ExampleScene extends Scene {
             // const aud = new Aud(absPath('assets/music.mp3'))
             // MSG.waitLoads(aud).then(() => aud.replay({ baseVolume: .2, loop: true }))
             // this.once("remove", () => aud.pause())
+        } else if(step === "GAMEOVER") {
+            this.hero.remove()
+            this.addGameoverSprites()
         }
     }
     initHero(){
         this.hero = this.addSprite(Hero)
         this.on("dblclick", () => {
-            if(this.step !== "GAME") return
-            this.hero.shoot()
+            if(this.hero && !this.hero.removed)
+                this.hero.shoot()
         })
     }
     update(dt) {
         super.update(dt)
         this.viewX += RUN_SPD * dt
         ExampleScene.updaters.forEach(fn => fn(this))
-        if (this.step == "GAME") {
-            if (this.hero.life == 0) this.finish()
-        }
+        if (this.step === "GAME" && this.hero.life == 0)
+            this.setStep("GAMEOVER")
     }
     draw(dt) {
         const viewX = this.viewX, viewY = this.viewY, ctx = this.canvas.getContext("2d")
@@ -143,7 +146,6 @@ class ExampleScene extends Scene {
         })
     }
     addIntroSprites() {
-        log("TMP addIntroSprites")
         this.introSprites = []
         const addIntro = (cls, kwargs) => {
             const sprite = this.addSprite(cls, kwargs)
@@ -168,12 +170,9 @@ class ExampleScene extends Scene {
             value: "Touchez pour commencer"
         })
     }
-    finish() {
-        this.step = "END"
-        // this.hero.anim = HeroAnims.happy
+    addGameoverSprites() {
         const args = {
             x: WIDTH / 2,
-            font: "30px Arial",
             color: "red",
             anchorX: .5,
             anchorY: 0,
@@ -183,26 +182,19 @@ class ExampleScene extends Scene {
         this.addSprite(Text, {
             ...args,
             y: 200,
-            value: `FINITO`,
+            font: "30px Arial",
+            value: `GAME OVER`,
         })
-        // font = "20px Arial"
-        // let text = "J'espere que ce jeu vous a plu ;)"
-        // this.addSprite(Text, {
-        //     x, y: 300,
-        //     font, anchorX, anchorY,
-        //     value: text,
-        //     lineHeight: 40,
-        //     fixed: true
-        // })
-        // this.addSprite(Text, {
-        //     x, y: 550,
-        //     font, anchorX, anchorY,
-        //     value: `Touchez pour recommencer`,
-        //     fixed: true
-        // })
-        this.once("click", () => {
-            this.remove()
-            this.game.restart()
+        this.on(2, () => {
+            this.addSprite(Text, {
+                ...args, y: 350,
+                font: "20px Arial",
+                value: "Touchez pour recommencer"
+            })
+            this.once("click", () => {
+                this.remove()
+                this.game.restart()
+            })
         })
     }
 }
@@ -451,7 +443,7 @@ class Hero extends _Sprite {
     y = HEIGHT*2/3
     dx = 0
     dy = 0
-    life = 3
+    life = LIFE
     lastDamageTime = -DAMAGE_GRACE_TIME
     z = WALKING_Z
     startPos = null
@@ -534,6 +526,13 @@ class Hero extends _Sprite {
         this.scene.addSprite(Iceball, {
             x: this.x + 70,
             y: this.y - 80
+        })
+    }
+    remove(){
+        super.remove()
+        this.scene.addSprite(IceExplosion, {
+            x: this.x,
+            y: this.y
         })
     }
 }
@@ -724,8 +723,8 @@ class Iceball extends _Sprite {
         this.remove()
         fireball.remove()
         this.scene.addSprite(IceExplosion, {
-            x: fireball.x,
-            y: fireball.y,
+            x: fireball.x + 5,
+            y: fireball.y - 25,
         })
     }
 }
