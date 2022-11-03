@@ -260,8 +260,8 @@ class Notif extends Text {
 
 ExampleScene.ongoers.push(scn => {
     scn.addSprite(Text, {
-        x: 350,
-        y: 30,
+        x: 180,
+        y: 10,
         value: () => `Life: ${scn.hero.life}`,
         color: "red",
         viewF: 0,
@@ -462,13 +462,6 @@ class Hero extends _Sprite {
     damage() {
         if(this.inGrace()) return
         const scn = this.scene
-        // scn.score -= n
-        // scn.addSprite(Notif, {
-        //     x: this.x,
-        //     y: HERO_Y - 50,
-        //     value: "-" + n,
-        //     color: "red"
-        // })
         this.life -= 1
         scn.addSprite(MSG.Flash, {
             width: WIDTH,
@@ -597,7 +590,7 @@ class Fireball extends _Sprite {
     remove() {
         super.remove()
         this.shadow.remove()
-        this.scene.score += 1
+        if(this.scene.step === "GAME") this.scene.score += 1
     }
 
     getHitBox() {
@@ -845,8 +838,8 @@ class Fire extends _Sprite {
 
 ExampleScene.ongoers.push(scn => {
     scn.addSprite(Text, {
-        x: 350,
-        y: 5,
+        x: 330,
+        y: 10,
         value: () => `Score: ${scn.score}`,
         color: "red",
         viewF: 0,
