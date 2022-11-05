@@ -12,7 +12,7 @@ const WIDTH = 600, HEIGHT = 400
 const RUN_SPD = 400
 const ANCHOR_X = .5
 const ANCHOR_Y = 1
-const LIFE = 3
+const LIFE = 5
 const FONT = "Serif"
 
 Aud.MaxVolumeLevel = 0.3
@@ -222,6 +222,7 @@ class PauseScene extends Scene {
             x: this.width/2,
             y: this.height/2,
             font: `40px ${FONT}`,
+            color: "#F99",
             anchorX: .5,
             anchorY: .5,
             value: "Pause"
@@ -258,18 +259,35 @@ class Notif extends Text {
     }
 }
 
-// Life
+// Hearts
+
+const HeartSS = new SpriteSheet(absPath('assets/heart.png'), {
+    frameWidth: 50,
+    frameHeight: 50
+})
+const HeartAnims = range(2).map(i => new Anim(HeartSS.getFrame(i)))
+
+class Heart extends _Sprite {
+
+    width = 20
+    height = 20
+    viewF = 0
+    z = NOTIF_Z
+
+    update(dt){
+        super.update(dt)
+        this.anim = HeartAnims[(this.scene.hero.life > this.num) ? 0 : 1]
+    }
+}
 
 ExampleScene.ongoers.push(scn => {
-    scn.addSprite(Text, {
-        x: 180,
-        y: 10,
-        value: () => `Life: ${scn.hero.life}`,
-        color: "red",
-        font: `20px ${FONT}`,
-        viewF: 0,
-        z: NOTIF_Z,
-    })
+    for(let i of range(LIFE)) {
+        scn.addSprite(Heart, {
+            num: i,
+            x: 150 + i * 25,
+            y: 10,
+        })
+    }
 })
 
 // background
@@ -645,7 +663,7 @@ function createRandomFireball(scn) {
         targetY: minY+ (HEIGHT - minY) * rand(),
         angle: PI/4,
     })
-    scn.nextFireballTime = getNextFireballTime(scn)
+    scn.nextFireballTime = scn.time + getNextFireballPeriod(scn)
 }
 
 function createRandomVolcanoFireball(scn) {
@@ -657,11 +675,11 @@ function createRandomVolcanoFireball(scn) {
         y: 40,
         angle: -1 * (PI/4 + rand() * PI/2),
     })
-    scn.nextVolcanoFireballTime = getNextFireballTime(scn)
+    scn.nextVolcanoFireballTime = scn.time + getNextFireballPeriod(scn) / 2
 }
 
-function getNextFireballTime(scn) {
-    return scn.time + 2 / (1 + scn.score / 10)
+function getNextFireballPeriod(scn) {
+    return 2 / (1 + scn.score / 10)
 }
 
 ExampleScene.updaters.push(createRandomFireball)
