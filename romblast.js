@@ -1,5 +1,5 @@
 const { assign } = Object
-const { abs, floor, min, max, pow, random: rand, cos, sin, tan, PI } = Math
+const { abs, floor, min, max, pow, sqrt, random: rand, cos, sin, tan, PI } = Math
 const { log } = console
 
 import * as MSG from './msgame.js'
@@ -31,7 +31,7 @@ const FLYING_Z = it++
 const NOTIF_Z = it++
 
 
-export class ExampleGame extends Game {
+export class RomblastGame extends Game {
 
     width = WIDTH
     height = HEIGHT
@@ -57,7 +57,7 @@ export class ExampleGame extends Game {
         this.restart("INTRO")
     }
     restart(step) {
-        this.scene = new ExampleScene(this, step)
+        this.scene = new RomblastScene(this, step)
     }
     update(dt) {
         super.update(dt)
@@ -93,9 +93,10 @@ export class ExampleGame extends Game {
 
 // scene
 
-class ExampleScene extends Scene {
+class RomblastScene extends Scene {
 
     score = 0
+    scoreBonus = 0
 
     constructor(game, startStep, kwargs){
         super(game)
@@ -104,7 +105,7 @@ class ExampleScene extends Scene {
     }
     start() {
         super.start()
-        ExampleScene.starters.forEach(fn => fn(this))
+        RomblastScene.starters.forEach(fn => fn(this))
         this.setStep(this.startStep)
     }
     setStep(step) {
@@ -115,7 +116,7 @@ class ExampleScene extends Scene {
             this.once("click", () => this.setStep("GAME"))
         } else if(step === "GAME") {
             this.sprites.forEach(s => { if(s.isIntro) s.remove() })
-            ExampleScene.ongoers.forEach(fn => fn(this))
+            RomblastScene.ongoers.forEach(fn => fn(this))
             this.initHero()
             const aud = new Aud(absPath('assets/Gigakoops-Revenge_from_Behind_the_Grave.mp3'))
             MSG.waitLoads(aud).then(() => aud.replay({ baseVolume: .2, loop: true }))
@@ -135,7 +136,7 @@ class ExampleScene extends Scene {
     update(dt) {
         super.update(dt)
         this.viewX += RUN_SPD * dt
-        ExampleScene.updaters.forEach(fn => fn(this))
+        RomblastScene.updaters.forEach(fn => fn(this))
         if (this.step === "GAME" && this.hero.life == 0)
             this.setStep("GAMEOVER")
     }
@@ -188,7 +189,7 @@ class ExampleScene extends Scene {
             value: `GAME OVER`,
             font: `60px Cursive`,
         })
-        this.on(1, () => {
+        this.on(2, () => {
             this.addSprite(Text, {
                 ...args, y: 350,
                 font: `20px ${FONT}`,
@@ -201,9 +202,9 @@ class ExampleScene extends Scene {
         })
     }
 }
-ExampleScene.starters = []
-ExampleScene.ongoers = []
-ExampleScene.updaters = []
+RomblastScene.starters = []
+RomblastScene.ongoers = []
+RomblastScene.updaters = []
 
 // pause
 
@@ -245,20 +246,6 @@ class _Sprite extends Sprite {
     }
 }
 
-class Notif extends Text {
-
-    viewF = 0
-    z = NOTIF_Z
-    anchorX = .5
-    anchorY = 1
-
-    update(dt) {
-        super.update(dt)
-        this.y -= 20 * dt
-        if (this.time > .5) this.remove()
-    }
-}
-
 // Hearts
 
 const HeartSS = new SpriteSheet(absPath('assets/heart.png'), {
@@ -280,7 +267,7 @@ class Heart extends _Sprite {
     }
 }
 
-ExampleScene.ongoers.push(scn => {
+RomblastScene.ongoers.push(scn => {
     for(let i of range(LIFE)) {
         scn.addSprite(Heart, {
             num: i,
@@ -306,7 +293,7 @@ const VolcanoFlameSS = new SpriteSheet(absPath('assets/volcano_flame.png'), {
 })
 const VolcanoFlameAnim = new Anim(range(84).map(i => VolcanoFlameSS.getFrame(i)), { fps: 15 })
 
-ExampleScene.starters.push(scn => {
+RomblastScene.starters.push(scn => {
     scn.addSprite(Sprite, {
         width: WIDTH,
         height: GROUND_Y,
@@ -331,7 +318,7 @@ ExampleScene.starters.push(scn => {
     scn.fireBandTiler.addNewTiles()
 })
 
-ExampleScene.updaters.push(scn => {
+RomblastScene.updaters.push(scn => {
     scn.groundTiler.addNewTiles()
     scn.bushTiler.addNewTiles()
     scn.fireBandTiler.addNewTiles()
@@ -484,6 +471,7 @@ class Hero extends _Sprite {
         if(this.inGrace()) return
         const scn = this.scene
         this.life -= 1
+        this.scene.scoreBonus = 0
         scn.addSprite(MSG.Flash, {
             width: WIDTH,
             height: HEIGHT,
@@ -552,7 +540,7 @@ class Hero extends _Sprite {
     }
 }
 
-// ExampleScene.ongoers.push(scn => {
+// RomblastScene.ongoers.push(scn => {
 //     const game = scn.game, hero = scn.hero
 //     hero.anim = HeroAnims.run
 // })
@@ -608,10 +596,13 @@ class Fireball extends _Sprite {
         }
     }
 
-    remove() {
+    remove(removedByHero) {
         super.remove()
         if(this.shadow) this.shadow.remove()
-        if(this.scene.step === "GAME") this.scene.score += 1
+        if(this.scene.step === "GAME") {
+            this.scene.score += 1
+            if(removedByHero) this.scene.score += this.scene.scoreBonus
+        }
     }
 
     getHitBox() {
@@ -679,11 +670,11 @@ function createRandomVolcanoFireball(scn) {
 }
 
 function getNextFireballPeriod(scn) {
-    return 2 / (1 + scn.score / 10)
+    return 2 / sqrt(1 + scn.score / 5)
 }
 
-ExampleScene.updaters.push(createRandomFireball)
-ExampleScene.updaters.push(createRandomVolcanoFireball)
+RomblastScene.updaters.push(createRandomFireball)
+RomblastScene.updaters.push(createRandomVolcanoFireball)
 
 
 // iceball
@@ -742,12 +733,18 @@ class Iceball extends _Sprite {
     }
 
     hit(fireball) {
-        this.remove()
-        fireball.remove()
+        fireball.remove(true)
+        this.remove(true)
         this.scene.addSprite(IceExplosion, {
             x: fireball.x + 5,
             y: fireball.y - 25,
         })
+    }
+
+    remove(removedByHit) {
+        super.remove()
+        if(!removedByHit) this.scene.scoreBonus = 0
+        else this.scene.scoreBonus += 1
     }
 }
 
@@ -864,11 +861,20 @@ class Fire extends _Sprite {
 
 // score
 
-ExampleScene.ongoers.push(scn => {
+RomblastScene.ongoers.push(scn => {
     scn.addSprite(Text, {
         x: 330,
-        y: 10,
+        y: 5,
         value: () => `Score: ${scn.score}`,
+        font: `20px ${FONT}`,
+        color: "red",
+        viewF: 0,
+        z: NOTIF_Z,
+    })
+    scn.addSprite(Text, {
+        x: 330,
+        y: 25,
+        value: () => `Bonus: ${scn.scoreBonus}`,
         font: `20px ${FONT}`,
         color: "red",
         viewF: 0,
@@ -907,7 +913,7 @@ ExampleScene.ongoers.push(scn => {
 //     }
 // }
 
-// ExampleScene.updaters.push(scn => {
+// RomblastScene.updaters.push(scn => {
 //     if (scn.time > DURATION) return
 //     const nextTime = scn.enemyNextTime || 0
 //     if (scn.time > nextTime) {
