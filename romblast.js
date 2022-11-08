@@ -119,7 +119,7 @@ class RomblastScene extends Scene {
             RomblastScene.ongoers.forEach(fn => fn(this))
             this.initHero()
             this.gameMusic = new Aud(absPath('assets/Gigakoops-Revenge_from_Behind_the_Grave.mp3'))
-            MSG.waitLoads(this.gameMusic).then(() => this.gameMusic.replay({ baseVolume: .2, loop: true }))
+            MSG.waitLoads(this.gameMusic).then(() => this.gameMusic.replay({ baseVolume: .1, loop: true }))
             this.once("remove", () => this.gameMusic.remove())
         } else if(step === "GAMEOVER") {
             this.hero.remove()
@@ -770,6 +770,11 @@ class IceExplosion extends _Sprite {
     anchorY = .5
     z = EXPLOSION_Z
 
+    start() {
+        super.start()
+        explosionAudPool.next().replay({ force: true })
+    }
+
     update(dt) {
         super.update(dt)
         if(this.time >= .5) this.remove()
@@ -800,6 +805,8 @@ const ExplosionSS = new SpriteSheet(absPath('assets/sprite_explosion.png'), {
 })
 const ExplosionAnim = new Anim(range(6).map(i => ExplosionSS.getFrame(i)), { fps: 15, loop: false })
 
+const explosionAudPool = new MSG.AudPool(3, absPath(`assets/boom.mp3`), { baseVolume: .3 })
+
 class Explosion extends _Sprite {
 
     width = 150
@@ -811,9 +818,10 @@ class Explosion extends _Sprite {
 
     start() {
         super.start()
-        if (MSG.collide(this, this.scene.hero.getHitBox())) {
+        if (MSG.collide(this, this.scene.hero.getHitBox()))
             this.scene.hero.damage()
-        }
+        if(this.scene.step === "GAME")
+            explosionAudPool.next().replay({ force: true })
     }
 
     update(dt) {
