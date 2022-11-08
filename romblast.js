@@ -118,12 +118,16 @@ class RomblastScene extends Scene {
             this.sprites.forEach(s => { if(s.isIntro) s.remove() })
             RomblastScene.ongoers.forEach(fn => fn(this))
             this.initHero()
-            const aud = new Aud(absPath('assets/Gigakoops-Revenge_from_Behind_the_Grave.mp3'))
-            MSG.waitLoads(aud).then(() => aud.replay({ baseVolume: .2, loop: true }))
-            this.once("remove", () => aud.remove())
+            this.gameMusic = new Aud(absPath('assets/Gigakoops-Revenge_from_Behind_the_Grave.mp3'))
+            MSG.waitLoads(this.gameMusic).then(() => this.gameMusic.replay({ baseVolume: .2, loop: true }))
+            this.once("remove", () => this.gameMusic.remove())
         } else if(step === "GAMEOVER") {
             this.hero.remove()
             this.addGameoverSprites()
+            this.gameMusic.pause()
+            this.gameoverMusic = new Aud(absPath('assets/Steve_Combs-Ambient_507050.mp3'))
+            MSG.waitLoads(this.gameoverMusic).then(() => this.gameoverMusic.replay({ baseVolume: .2, loop: true }))
+            this.once("remove", () => this.gameoverMusic.remove())
         }
     }
     initHero(){
