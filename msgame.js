@@ -149,9 +149,11 @@ class Elem {
     }
 
     every(timeKey, period, fun) {
-        const lastTime = this[timeKey] || 0
+        let lastTimes = this.lastTimes
+        if(!lastTimes) lastTimes = this.lastTimes = {}
+        const lastTime = lastTimes[timeKey] || 0
         if (this.time >= lastTime) {
-            this[timeKey] = lastTime + _mayCall(period)
+            lastTimes[timeKey] = this.time + _mayCall(period)
             fun()
         }
     }

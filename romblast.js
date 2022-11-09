@@ -14,6 +14,7 @@ const ANCHOR_X = .5
 const ANCHOR_Y = 1
 const LIFE = 5
 const FONT = "Serif"
+const SHOOT_PERIOD = 1
 
 Aud.MaxVolumeLevel = 0.3
 
@@ -530,9 +531,11 @@ class Hero extends _Sprite {
         }
     }
     shoot() {
-        this.scene.addSprite(Iceball, {
-            x: this.x + 70,
-            y: this.y - 80
+        this.every("shoot", SHOOT_PERIOD, () => {
+            this.scene.addSprite(Iceball, {
+                x: this.x + 70,
+                y: this.y - 80
+            })
         })
     }
     remove(){
@@ -712,7 +715,7 @@ class Iceball extends _Sprite {
         this.checkExistence()
         this.scene.sprites.forEach(fireball => {
             if(!(fireball instanceof Fireball)) return
-            if (MSG.collide(this.getHitBox(), fireball.getHitBox())) this.hit(fireball)
+            if(MSG.collide(this.getHitBox(), fireball.getHitBox())) this.hit(fireball)
         })
     }
 
@@ -805,7 +808,7 @@ const ExplosionSS = new SpriteSheet(absPath('assets/sprite_explosion.png'), {
 })
 const ExplosionAnim = new Anim(range(6).map(i => ExplosionSS.getFrame(i)), { fps: 15, loop: false })
 
-const explosionAudPool = new MSG.AudPool(3, absPath(`assets/boom.mp3`), { baseVolume: .3 })
+const explosionAudPool = new MSG.AudPool(3, absPath(`assets/boom.mp3`), { baseVolume: .1 })
 
 class Explosion extends _Sprite {
 
