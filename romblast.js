@@ -14,7 +14,7 @@ const ANCHOR_X = .5
 const ANCHOR_Y = 1
 const LIFE = 5
 const FONT = "Serif"
-const SHOOT_PERIOD = 1
+const SHOOT_PERIOD = .5
 
 Aud.MaxVolumeLevel = 0.3
 
@@ -36,7 +36,6 @@ export class RomblastGame extends Game {
 
     width = WIDTH
     height = HEIGHT
-    paused = false
 
     start() {
         super.start()
@@ -96,13 +95,13 @@ export class RomblastGame extends Game {
 
 class RomblastScene extends Scene {
 
-    score = 0
-    scoreBonus = 0
-
     constructor(game, startStep, kwargs){
-        super(game)
+        super(game, {
+            score: 0,
+            scoreBonus: 0,
+            ...kwargs
+        })
         this.startStep = startStep
-        if(kwargs) this.set(kwargs)
     }
     start() {
         super.start()
@@ -452,16 +451,22 @@ class Hero extends _Sprite {
     height = 67
     anchorX = ANCHOR_X
     anchorY = ANCHOR_Y
-    screenX = -50
-    x = -50
-    y = HEIGHT*2/3
-    dx = 0
-    dy = 0
-    life = LIFE
-    lastDamageTime = -DAMAGE_GRACE_TIME
     z = WALKING_Z
-    startPos = null
-    step = "INTRO"
+
+    constructor(scn, kwargs){
+        super(scn, {
+            screenX: -50,
+            x: -50,
+            y: HEIGHT*2/3,
+            dx: 0,
+            dy: 0,
+            life: LIFE,
+            lastDamageTime: -DAMAGE_GRACE_TIME,
+            startPos: null,
+            step: "INTRO",
+            ...kwargs
+        })
+    }
 
     update(dt){
         super.update(dt)
@@ -750,7 +755,7 @@ class Iceball extends _Sprite {
 
     remove(removedByHit) {
         super.remove()
-        if(!removedByHit) this.scene.scoreBonus = 0
+        if(!removedByHit) this.scene.scoreBonus = max(0, this.scene.scoreBonus - 1)
         else this.scene.scoreBonus += 1
     }
 }
@@ -787,7 +792,6 @@ class IceExplosion extends _Sprite {
 // shadow
 
 class Shadow extends _Sprite {
-
     width = 30
     height = 15
     anim = "black"
