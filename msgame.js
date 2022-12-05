@@ -72,7 +72,14 @@ export function absPath(relPath){
 
 class Elem {
 
-    time = 0
+    constructor(kwargs) {
+        this.time = 0
+        if(kwargs) this.set(kwargs)
+    }
+
+    set(state) {
+        assign(this, state)
+    }
 
     start() {}
 
@@ -163,20 +170,21 @@ class Elem {
 
 export class Game extends Elem {
 
-    width = 600
-    height = 400
-    fps = 60
-    dblClickDurarion = .3
-    paused = false
-
-    constructor(parentEl, kwargs) {
-        super()
-        this.parentEl = parentEl
-        if(kwargs) this.set(kwargs)
+    static {
+        assign(this.prototype, {
+            width: 600,
+            height: 400,
+            fps: 60,
+            dblClickDurarion: .3,
+        })
     }
 
-    set(state) {
-        assign(this, state)
+    constructor(parentEl, kwargs) {
+        super({
+            paused: false,
+            ...kwargs
+        })
+        this.parentEl = parentEl
     }
 
     // canvas
@@ -306,22 +314,22 @@ export class Game extends Elem {
 
 export class Scene extends Elem {
 
-    x = 0
-    y = 0
-    viewX = 0
-    viewY = 0
-
     constructor(game, kwargs) {
-        super()
+        super({
+            x: 0,
+            y: 0,
+            viewX: 0,
+            viewY: 0,
+            width: game.width,
+            height: game.height,
+            ...kwargs
+        })
         this.game = game
-        this.width = game.width
-        this.height = game.height
         this.sprites = []
-        if(kwargs) this.set(kwargs)
     }
     set(state) {
         if(state.removed) this.remove()
-        assign(this, state)
+        super.set(state)
     }
     get canvas(){
         if(!this._canvas) {
@@ -388,32 +396,37 @@ export function fillImg(img) {
 
 export class Sprite extends Elem {
 
-    x = 0
-    y = 0
-    z = 0
-    width = 50
-    height = 50
-    angle = 0
-    anchorX = 0
-    anchorY = 0
-    anim = "black"
-    animTime = 0
-    getImgScaleArgs = strechImg
+    static {
+        assign(this.prototype, {
+            z: 0,
+            width: 50,
+            height: 50,
+            anchorX: 0,
+            anchorY: 0,
+            anim: "black",
+            getImgScaleArgs: strechImg,
+        })
+    }
 
     constructor(parent, kwargs) {
-        super()
+        super({
+            x: 0,
+            y: 0,
+            angle: 0,
+            animTime: 0,
+            ...kwargs
+        })
         if(parent instanceof Game) {
             this.game = parent
         } else if(parent instanceof Scene) {
             this.scene = parent
             this.game = parent.game
         }
-        if(kwargs) this.set(kwargs)
     }
 
     set(state) {
         if(state.removed) this.remove()
-        assign(this, state)
+        super.set(state)
     }
 
     getBoundaries() {
@@ -532,8 +545,12 @@ export class SpriteSheet {
 
 export class Anim {
 
-    fps = 1
-    loop = true
+    static {
+        assign(this.prototype, {
+            fps: 1,
+            loop: true,
+        })
+    }
 
     constructor(imgs, kwargs) {
         this.imgs = _asArr(imgs).map(img => (typeof img === "string") ? new Img(img) : img)
@@ -598,7 +615,14 @@ export const Audios = []
 
 export class Aud extends Audio {
 
-    baseVolume = 1
+    static MaxVolumeLevel = 1
+    static VolumeLevel = 1
+
+    static {
+        assign(this.prototype, {
+            baseVolume: 1,
+        })
+    }
 
     constructor(src, kwargs) {
         super()
@@ -644,9 +668,6 @@ export class Aud extends Audio {
         if(idx !== -1) Audios.splice(idx, 1)
     }
 }
-
-Aud.MaxVolumeLevel = 1
-Aud.VolumeLevel = 1
 
 export function pauseAudios(val) {
     Audios.forEach(a => {
@@ -796,11 +817,10 @@ export class Text extends Sprite {
 
 export class HtmlSprite extends Sprite {
 
-    anim = null
-
-    constructor(scn, kwargs) {
-        super(scn)
-        if(kwargs) this.set(kwargs)
+    static {
+        assign(this.prototype, {
+            anim: null,
+        })
     }
 
     start(){
@@ -850,8 +870,7 @@ function toHtml(html) {
 export class InputSprite extends HtmlSprite {
 
     constructor(scn, kwargs) {
-        super(scn)
-        this.set({
+        super(scn, {
             html: "<input type='text' />",
             ...kwargs
         })
@@ -970,11 +989,10 @@ export class PauseBut extends Sprite {
 
 export class Flash extends Sprite {
 
-    ttl = .15
-
-    constructor(scn, kwargs) {
-        super(scn)
-        if(kwargs) this.set(kwargs)
+    static {
+        assign(this.prototype, {
+            ttl: .15,
+        })
     }
 
     update(dt) {
@@ -1003,10 +1021,14 @@ export class Flash extends Sprite {
 
 export class Tiler {
 
-    addedMinNx = 1
-    addedMinNy = 1
-    addedMaxNx = 0
-    addedMaxNy = 0
+    static {
+        assign(this.prototype, {
+            addedMinNx: 1,
+            addedMinNy: 1,
+            addedMaxNx: 0,
+            addedMaxNy: 0,
+        })
+    }
 
     constructor(scn, tileWidth, tileHeight) {
         this.scene = scn
