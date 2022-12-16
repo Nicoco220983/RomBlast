@@ -466,27 +466,33 @@ export class Sprite extends Elem {
         const animAlpha = this.animAlpha
         if (animAlpha !== undefined && animAlpha !== null) args.alpha = this.animAlpha
         if(this.animCompose) args.compose = this.animCompose
+        if(this.animCall) args.call = this.animCall
         return args
-        //if(this.angle) transArgs = this.getImgAngleArgs(img)
     }
 
     getDefaultAnim() {
-        const color = this.anim
-        const shape = this.animShape || "box"
-        return _getCached(this.__proto__, `dImg:${shape}:${color}`, () => {
+        return _getCached(this.__proto__, `dImg:${this.anim}`, () => {
             const size = 10
-            const can = _createCan(size, size), ctx = _ctx(can)
-            ctx.fillStyle = color
-            if(shape === "box") {
-                ctx.fillRect(0, 0, size, size)
-            } else if(shape === "circle") {
-                ctx.beginPath()
-                ctx.arc(size/2, size/2, size/2, 0, 2*PI, false)
-                ctx.fill()
-            }
+            const can = createCanvasFromStr(size, size, this.anim)
             return new Anim(can)
         })
     }
+}
+
+function createCanvasFromStr(width, height, descStr) {
+    const can = _createCan(width, height), ctx = _ctx(can)
+    const descArgs = descStr.split('_')
+    const color = descArgs[0]
+    const shape = (descArgs.length >= 2) ? descArgs[1] : "box"
+    ctx.fillStyle = color
+    if(shape === "box") {
+        ctx.fillRect(0, 0, width, height)
+    } else if(shape === "circle") {
+        ctx.beginPath()
+        ctx.arc(width/2, height/2, width/2, 0, 2*PI, false)
+        ctx.fill()
+    }
+    return can
 }
 
 // Loads
@@ -565,34 +571,56 @@ export class Anim {
     }
     transformImg(img, kwargs) {
         return _getCached(img, JSON.stringify(kwargs), () => {
+
             let width = kwargs.width || img.width
             let height = kwargs.height || img.height
             const angle = kwargs.angle || 0
+
             let awidth = width, aheight = height
             if(angle) {
                 awidth = abs(cos(angle)) * width + abs(sin(angle)) * height
                 aheight = abs(cos(angle)) * height + abs(sin(angle)) * width
             }
-            const can = _createCan(awidth, aheight), ctx = _ctx(can)
+
+            let can = _createCan(awidth, aheight), ctx = _ctx(can)
+            can.dx = width - awidth
+            can.dy = height - aheight
+
             const alpha = kwargs.alpha
             if(alpha!==undefined && alpha!==null) ctx.globalAlpha = alpha
+
             ctx.translate(awidth/2, aheight/2)
             ctx.scale(kwargs.flipX ? -1 : 1, kwargs.flipY ? -1 : 1)
             ctx.rotate(angle)
             ctx.drawImage(img, -width/2, -height/2, width, height)
-            if(kwargs.compose) {
-                const [compKey, compColor] = kwargs.compose.split(':')
-                const compCan = _createCan(awidth, aheight), compCtx = _ctx(compCan)
-                compCtx.fillStyle = compColor
-                compCtx.fillRect(0, 0, awidth, aheight)
-                ctx.globalCompositeOperation = compKey
-                ctx.drawImage(compCan, -awidth/2, -aheight/2, awidth, aheight)
-                ctx.globalCompositeOperation = "source-over"
+            ctx.translate(-awidth/2, -aheight/2)
+
+            if(kwargs.call) {
+                const cans = [can]
+                const ctx = {
+                    getCanvas: idx => (isNaN(parseInt(idx)) ? createCanvasFromStr(awidth, aheight, idx) : cans[idx])
+                }
+                for(let callStr of kwargs.call.split(';')) {
+                    const callArgs = callStr.split(',')
+                    const callFun = Anim.callers[callArgs.shift()]
+                    cans.push(callFun(ctx, ...callArgs))
+                }
+                can = cans[cans.length-1]
             }
-            can.dx = width - awidth
-            can.dy = height - aheight
+            
             return can
         })
+    }
+}
+
+Anim.callers = {
+    compose: function(ctx, compKey, sourceCan, compCan) {
+        sourceCan = ctx.getCanvas(sourceCan)
+        compCan = ctx.getCanvas(compCan)
+        const sourceCtx = _ctx(sourceCan)
+        sourceCtx.globalCompositeOperation = compKey
+        sourceCtx.drawImage(compCan, 0, 0, sourceCan.width, sourceCan.height)
+        return sourceCan
     }
 }
 

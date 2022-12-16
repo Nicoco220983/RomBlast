@@ -85,7 +85,7 @@ export class RomblastGame extends Game {
                 height: size,
                 x: this.width - padding - (size + padding) * this.gameButs.length,
                 y: padding,
-                animCompose: "source-in:red",
+                animCall: "compose,source-in,0,red",
             }))
         }
     }
@@ -93,12 +93,15 @@ export class RomblastGame extends Game {
 
 // scene
 
+const SCORE_BONUS_LIFETIME = 2
+
 class RomblastScene extends Scene {
 
     constructor(game, startStep, kwargs){
         super(game, {
             score: 0,
             scoreBonus: 0,
+            scoreBonusLastUpdTime: 0,
             ...kwargs
         })
         this.startStep = startStep
@@ -141,8 +144,16 @@ class RomblastScene extends Scene {
         super.update(dt)
         this.viewX += RUN_SPD * dt
         RomblastScene.updaters.forEach(fn => fn(this))
-        if (this.step === "GAME" && this.hero.life == 0)
-            this.setStep("GAMEOVER")
+        if(this.step === "GAME") {
+            if (this.hero.life == 0) {
+                this.setStep("GAMEOVER")
+            }
+            if(this.time > this.scoreBonusLastUpdTime) this.updScoreBonus(-1)
+        }
+    }
+    updScoreBonus(up) {
+        this.scoreBonus = max(0, this.scoreBonus + up)
+        this.scoreBonusLastUpdTime = this.time + SCORE_BONUS_LIFETIME
     }
     draw(dt) {
         const viewX = this.viewX, viewY = this.viewY, ctx = this.canvas.getContext("2d")
@@ -432,7 +443,8 @@ class FireBandTiler extends MSG.Tiler {
 // hero
 
 const SPDMAX = 2000, ACC = 2000, DEC = 2000
-const DAMAGE_GRACE_TIME = 1
+const DAMAGE_GRACE_DURATION = 1
+const SUPERPOWER_DURATION = 3
 
 const heroSS = new SpriteSheet(absPath('assets/loup_running.png'), {
     frameWidth: 107,
@@ -461,7 +473,8 @@ class Hero extends _Sprite {
             dx: 0,
             dy: 0,
             life: LIFE,
-            lastDamageTime: -DAMAGE_GRACE_TIME,
+            lastDamageTime: -DAMAGE_GRACE_DURATION,
+            lastSuperPowerTime: -SUPERPOWER_DURATION,
             startPos: null,
             step: "INTRO",
             ...kwargs
@@ -474,14 +487,17 @@ class Hero extends _Sprite {
         this.applyPlayerControls(dt)
         this.x = this.screenX + this.scene.viewX
     }
-    inGrace(){
-        return this.time < this.lastDamageTime + DAMAGE_GRACE_TIME
+    isSuperPower(){
+        return this.time < this.lastSuperPowerTime + SUPERPOWER_DURATION
+    }
+    isVulnerable(){
+        return this.time >= this.lastDamageTime + DAMAGE_GRACE_DURATION
     }
     damage() {
-        if(this.inGrace()) return
+        if(!this.isVulnerable() || this.isSuperPower()) return
         const scn = this.scene
         this.life -= 1
-        this.scene.scoreBonus = 0
+        // this.scene.scoreBonus = 0
         scn.addSprite(MSG.Flash, {
             width: WIDTH,
             height: HEIGHT,
@@ -492,11 +508,20 @@ class Hero extends _Sprite {
         this.lastDamageTime = this.time
         //ouchAud.replay()
     }
+    hitBonus() {
+        this.lastSuperPowerTime = this.time
+    }
     updAnim(dt){
-        if(this.inGrace()) {
-            this.animAlpha = ((this.time - this.lastDamageTime) / .2) % 1 < .5 ? 0 : 1
+        if(this.isSuperPower()) {
+            const callStr = "compose,destination-in,yellow,0;compose,overlay,0,1"
+            this.animCall = ((this.time - this.lastDamageTime) / .2) % 1 < .5 ? callStr : null
         } else {
+            this.animCall = null
+        }
+        if(this.isVulnerable()) {
             delete this.animAlpha
+        } else {
+            this.animAlpha = ((this.time - this.lastDamageTime) / .2) % 1 < .5 ? 0 : 1
         }
     }
     applyPlayerControls(dt){
@@ -536,7 +561,7 @@ class Hero extends _Sprite {
         }
     }
     shoot() {
-        this.every("shoot", SHOOT_PERIOD, () => {
+        this.every("shoot", this.isSuperPower() ? SHOOT_PERIOD/4 : SHOOT_PERIOD, () => {
             this.scene.addSprite(Iceball, {
                 x: this.x + 70,
                 y: this.y - 80
@@ -689,6 +714,93 @@ RomblastScene.updaters.push(createRandomFireball)
 RomblastScene.updaters.push(createRandomVolcanoFireball)
 
 
+class BonusFireball extends _Sprite {
+
+    width = 130
+    height = 100
+    speed = FIREBALL_SPEED
+    anim = IceballAnim
+    anchorX = 1
+    anchorY = 1
+    z = FLYING_Z
+
+    start() {
+        const distanceToTarget = 500
+        this.screenX = this.targetX - distanceToTarget * cos(this.angle) + 40
+        this.y = this.targetY - distanceToTarget * sin(this.angle)
+        this.shadow = this.scene.addSprite(Shadow, {
+            x: this.targetX,
+            y: this.targetY
+        })
+    }
+
+    update(dt){
+        super.update(dt)
+        this.updPos(dt)
+        this.checkExistence()
+    }
+
+    updPos(dt) {
+        this.screenX += this.speed * cos(this.angle) * dt
+        this.x = this.screenX + this.scene.viewX
+        this.y += this.speed * sin(this.angle) * dt
+    }
+
+    checkExistence() {
+        if(this.y >= this.targetY) {
+            this.scene.addSprite(IceExplosion, { x:this.x, y:this.y })
+            this.scene.addSprite(Bonus, { x:this.x, y:this.y })
+            this.remove()
+        }
+    }
+
+    remove() {
+        super.remove()
+        if(this.shadow) this.shadow.remove()
+    }
+}
+
+function createRandomBonusFireball(scn) {
+    if(scn.step === "INTRO") return
+    const nTime = scn.nextBonusFireballTime || 0
+    if(nTime > scn.time)
+        return
+    const minY = GROUND_Y + 40
+    scn.addSprite(BonusFireball, {
+        targetX: WIDTH - (300 * pow(rand(), 1.5)),
+        targetY: minY+ (HEIGHT - minY) * rand(),
+        angle: PI/4,
+    })
+    scn.nextBonusFireballTime = scn.time + 5
+}
+
+RomblastScene.updaters.push(createRandomBonusFireball)
+
+
+// bonus
+
+const BonusAnim = new Anim(absPath('assets/bonus.png'))
+
+class Bonus extends _Sprite {
+
+    width = 50
+    height = 50
+    anim = BonusAnim
+    anchorX = .5
+    anchorY = 1
+    z = WALKING_Z
+
+    update(dt){
+        super.update(dt)
+        if(this.x+this.width < this.scene.viewX) this.remove()
+        if(MSG.collide(this, this.scene.hero.getHitBox())) {
+            this.scene.hero.hitBonus()
+            this.remove()
+        }
+    }
+}
+
+
 // iceball
 
 const ICEBALL_SPEED = 500
@@ -755,8 +867,7 @@ class Iceball extends _Sprite {
 
     remove(removedByHit) {
         super.remove()
-        if(!removedByHit) this.scene.scoreBonus = max(0, this.scene.scoreBonus - 1)
-        else this.scene.scoreBonus += 1
+        if(removedByHit) this.scene.updScoreBonus(1)
     }
 }
 
@@ -794,8 +905,7 @@ class IceExplosion extends _Sprite {
 class Shadow extends _Sprite {
     width = 30
     height = 15
-    anim = "black"
-    animShape = "circle"
+    anim = "black_circle"
     animAlpha = .5
     viewF = 0
     anchorX = .5
