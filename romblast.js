@@ -1,5 +1,5 @@
 const { assign } = Object
-const { abs, floor, min, max, pow, sqrt, random: rand, cos, sin, tan, PI } = Math
+const { abs, floor, ceil, min, max, pow, sqrt, random: rand, cos, sin, tan, PI } = Math
 const { log } = console
 
 import * as MSG from './msgame.js'
@@ -148,7 +148,10 @@ class RomblastScene extends Scene {
             if (this.hero.life == 0) {
                 this.setStep("GAMEOVER")
             }
-            if(this.time > this.scoreBonusLastUpdTime) this.updScoreBonus(-1)
+            if(this.time > this.scoreBonusLastUpdTime) {
+                const malus = ceil(this.scoreBonus / 2)
+                this.updScoreBonus(-malus)
+            }
         }
     }
     updScoreBonus(up) {
