@@ -786,8 +786,8 @@ const BonusAnim = new Anim(absPath('assets/bonus.png'))
 
 class Bonus extends _Sprite {
 
-    width = 50
-    height = 50
+    width = 40
+    height = 40
     anim = BonusAnim
     anchorX = .5
     anchorY = 1
