@@ -162,8 +162,8 @@ class RomblastScene extends Scene {
         const viewX = this.viewX, viewY = this.viewY, ctx = this.canvas.getContext("2d")
         this.sprites.sort((a, b) => {
             const dz = (a.z - b.z)
-            if(dz !== 0) return dz > 0
-            return (a.y - b.y) > 0
+            if(dz !== 0) return dz
+            return a.y - b.y
         })
         this.sprites.forEach(sprite => {
             if(sprite.removed) return
